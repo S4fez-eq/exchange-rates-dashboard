@@ -8,12 +8,16 @@ import plotly.express as px
 import numpy as np
 from scipy import stats
 
-# โหลดข้อมูล Exchange Rates
-exchange_rates_path = "Foreign_Exchange_Rates.csv"
-exchange_data = pd.read_csv(exchange_rates_path)
+# สร้าง Dash app
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
+server = app.server  # สำคัญ: ต้องเพิ่มบรรทัดนี้สำหรับ Render
 
-# โหลดข้อมูล Inflation
-inflation_path = "Filtered_Inflation_Data.csv"
+# โหลดข้อมูล - ใช้เส้นทางสัมพัทธ์
+current_dir = os.path.dirname(os.path.abspath(__file__))
+exchange_rates_path = os.path.join(current_dir, "Foreign_Exchange_Rates.csv")
+inflation_path = os.path.join(current_dir, "Filtered_Inflation_Data.csv")
+
+exchange_data = pd.read_csv(exchange_rates_path)
 inflation_data = pd.read_csv(inflation_path)
 
 # ทำความสะอาดข้อมูล Exchange Rates
@@ -33,8 +37,7 @@ inflation_data_melted = pd.melt(
     value_name='Inflation_Rate'
 )
 
-# สร้างแอป Dash พร้อม Theme
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
+
 
 # กำหนดธีมสีแดงและน้ำเงิน
 red_blue_palette = [
@@ -691,4 +694,6 @@ def update_insights(selected_currencies, date_indices):
 
 # รัน app
 if __name__ == '__main__':
-    app.run(debug=True)
+    # ใช้พอร์ตจาก environment variable (สำคัญสำหรับ Render)
+    port = int(os.environ.get('PORT', 8080))
+    app.run_server(host='0.0.0.0', port=port, debug=False)
