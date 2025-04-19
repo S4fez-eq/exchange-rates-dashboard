@@ -7,6 +7,7 @@ import plotly.graph_objs as go
 import plotly.express as px
 import numpy as np
 from scipy import stats
+import os
 
 # สร้าง Dash app
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
