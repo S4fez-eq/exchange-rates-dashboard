@@ -37,16 +37,19 @@ inflation_data_melted = pd.melt(
     value_name='Inflation_Rate'
 )
 
-# กำหนดธีมสีแดงและน้ำเงิน
-red_blue_palette = [
-    '#E63946',  # สีแดงหลัก
-    '#457B9D',  # สีน้ำเงินหลัก
-    '#FF6B6B',  # สีแดงอ่อน
-    '#4DA2CE',  # สีน้ำเงินอ่อน
-    '#B30000',  # สีแดงเข้ม
-    '#1D3557',  # สีน้ำเงินเข้ม
-    '#FF9F9F',  # สีแดงอ่อนมาก
-    '#A8DADC',  # สีน้ำเงินอ่อนมาก
+# กำหนดธีมสีใหม่ที่มองเห็นได้ง่าย - ใช้ชุดสี ColorBrewer ที่เป็นมิตรกับทุกคน
+# ชุดสีที่มีความแตกต่างมากขึ้น และเป็นมิตรกับผู้มีปัญหาตาบอดสี
+enhanced_palette = [
+    '#1f77b4',  # สีน้ำเงินเข้มอมฟ้า
+    '#ff7f0e',  # สีส้ม
+    '#2ca02c',  # สีเขียว
+    '#d62728',  # สีแดง
+    '#9467bd',  # สีม่วง
+    '#8c564b',  # สีน้ำตาล
+    '#e377c2',  # สีชมพู
+    '#7f7f7f',  # สีเทา
+    '#bcbd22',  # สีเหลืองอมเขียว
+    '#17becf'   # สีฟ้า
 ]
 
 # Layout ของ Dashboard
@@ -227,7 +230,7 @@ def update_forecast_dropdown(selected_currencies):
      Output('box-plot', 'figure'),
      Output('area-chart', 'figure'),
      Output('inflation-line-chart', 'figure'),
-     Output('forecast-chart', 'figure'),  # เพิ่ม output นี้
+     Output('forecast-chart', 'figure'),
      Output('statistics-output', 'children')],
     [Input('currency-dropdown', 'value'),
      Input('inflation-series-dropdown', 'value'),
@@ -259,7 +262,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             mode='lines', 
             name=currency,
             line=dict(
-                color=red_blue_palette[i % len(red_blue_palette)],
+                color=enhanced_palette[i % len(enhanced_palette)],
                 width=2
             )
         ))
@@ -280,23 +283,19 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             text=f"Showing first {max_currencies_to_show} out of {len(selected_currencies)} selected currencies",
             xref="paper", yref="paper",
             x=1, y=1.1, showarrow=False,
-            font=dict(size=12, color="#E63946")
+            font=dict(size=12, color=enhanced_palette[3])  # ใช้สีแดงจากชุดสีใหม่
         )
 
     # 2. Histogram - แสดงการกระจายตัวของข้อมูลสำหรับแต่ละสกุลเงิน
     histogram_fig = go.Figure()
 
-    # ไม่จำเป็นต้องคำนวณ bin width แบบเดิม ให้ใช้การตั้งค่าที่ชัดเจนกว่า
+    # ใช้สีจากชุดสีใหม่เพื่อให้มองเห็นได้ชัดเจนขึ้น
     for i, currency in enumerate(selected_currencies):
-        # ใช้สีตามที่เห็นในรูป - สีน้ำเงินสำหรับ AUD และสีแดงสำหรับ EUR
-        color = '#3366CC' if 'AUSTRALIA' in currency else '#FF6347'  # สีน้ำเงินสำหรับ AUD, สีแดงสำหรับ EUR
-        
         histogram_fig.add_trace(go.Histogram(
             x=filtered_exchange_data[currency],
             name=currency,
             opacity=0.7,
-            marker_color=color,
-            # กำหนด bin ให้ชัดเจนขึ้น
+            marker_color=enhanced_palette[i % len(enhanced_palette)],
             xbins=dict(
                 size=0.02  # ให้ bin size เล็กลงเพื่อให้ได้รายละเอียดมากขึ้น
             ),
@@ -319,14 +318,14 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
     # 3. Bubble Chart - แสดงความสัมพันธ์ระหว่างสกุลเงิน
     bubble_fig = go.Figure()
     if len(selected_currencies) >= 2:
-    # เลือกเฉพาะสองสกุลเงินแรกที่ถูกเลือก
+        # เลือกเฉพาะสองสกุลเงินแรกที่ถูกเลือก
         curr1 = selected_currencies[0]
         curr2 = selected_currencies[1]
         
         # คำนวณค่า correlation ระหว่างสองสกุลเงิน
         corr_value = filtered_exchange_data[[curr1, curr2]].corr().iloc[0, 1]
         
-        # สร้าง scatter plot แสดงความสัมพันธ์
+        # สร้าง scatter plot แสดงความสัมพันธ์ - ใช้ Viridis colorscale ที่มองเห็นได้ง่าย
         bubble_fig.add_trace(go.Scatter(
             x=filtered_exchange_data[curr1],
             y=filtered_exchange_data[curr2],
@@ -335,8 +334,8 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             marker=dict(
                 size=8,
                 opacity=0.7,
-                color=filtered_exchange_data[curr1],  # ใช้ค่าสกุลเงินแรกเป็นค่าสี
-                colorscale='Viridis',  # ใช้ colorscale สวยๆ
+                color=filtered_exchange_data[curr1],
+                colorscale='Plasma',  # เปลี่ยนเป็น Plasma ที่มีความคมชัดมากขึ้น
                 colorbar=dict(title="Value"),
                 showscale=True
             )
@@ -355,10 +354,10 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             text="Please select at least 2 currencies to view correlation",
             xref="paper", yref="paper",
             x=0.5, y=0.5, showarrow=False,
-            font=dict(size=16, color="#E63946")
+            font=dict(size=16, color=enhanced_palette[3])  # ใช้สีแดงจากชุดสีใหม่
         )
     
-        # 4. Box Plot - แสดงการกระจายตัวของข้อมูล (รองรับทุกจำนวนสกุลเงิน)
+    # 4. Box Plot - แสดงการกระจายตัวของข้อมูล (รองรับทุกจำนวนสกุลเงิน)
     box_fig = go.Figure()
     if len(selected_currencies) > 20:  # ถ้ามีมากกว่า 20 สกุล จัดกลุ่มตามค่าเฉลี่ย
         mean_values = filtered_exchange_data[selected_currencies].mean().sort_values()
@@ -377,14 +376,14 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                 box_fig.add_trace(go.Box(
                     y=filtered_exchange_data[currencies].values.flatten(), 
                     name=group_name,
-                    marker_color=red_blue_palette[i % len(red_blue_palette)]
+                    marker_color=enhanced_palette[i % len(enhanced_palette)]
                 ))
     else:  # แสดงปกติสำหรับสกุลเงินจำนวนน้อย
         for i, currency in enumerate(selected_currencies):
             box_fig.add_trace(go.Box(
                 y=filtered_exchange_data[currency], 
                 name=currency,
-                marker_color=red_blue_palette[i % len(red_blue_palette)]
+                marker_color=enhanced_palette[i % len(enhanced_palette)]
             ))
         
     box_fig.update_layout(
@@ -408,7 +407,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                 y=monthly_pct_change[currency], 
                 fill='tozeroy', 
                 name=currency,
-                line=dict(color=red_blue_palette[i % len(red_blue_palette)])
+                line=dict(color=enhanced_palette[i % len(enhanced_palette)])
             ))
     else:  # ถ้ามีมากกว่า 5 สกุล แสดงเป็นค่าเฉลี่ยการเปลี่ยนแปลง
         avg_change = monthly_pct_change.mean(axis=1)
@@ -417,16 +416,21 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             y=avg_change, 
             fill='tozeroy', 
             name='Average Change',
-            line=dict(color=red_blue_palette[0])
+            line=dict(color=enhanced_palette[0])
         ))
         
-        # เพิ่มช่วงความผันผวน (standard deviation)
+        # เพิ่มช่วงความผันผวน (standard deviation) - ใช้สีที่มองเห็นได้ชัดเจนขึ้น
         std_change = monthly_pct_change.std(axis=1)
+        
+        # แปลงสี HEX เป็น RGB เพื่อกำหนดค่า alpha
+        hex_color = enhanced_palette[1].lstrip('#')
+        r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        
         area_fig.add_trace(go.Scatter(
             x=monthly_pct_change.index.tolist() + monthly_pct_change.index.tolist()[::-1],
             y=(avg_change + std_change).tolist() + (avg_change - std_change).tolist()[::-1],
             fill='toself',
-            fillcolor=f'rgba({int(red_blue_palette[1][1:3], 16)}, {int(red_blue_palette[1][3:5], 16)}, {int(red_blue_palette[1][5:7], 16)}, 0.2)',
+            fillcolor=f'rgba({r}, {g}, {b}, 0.3)',  # เพิ่มค่า alpha เป็น 0.3 เพื่อให้มองเห็นชัดขึ้น
             line=dict(color='rgba(255, 255, 255, 0)'),
             hoverinfo="skip",
             showlegend=False
@@ -441,19 +445,20 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
         paper_bgcolor='rgba(0,0,0,0)'
     )
 
-    # 6. Inflation Line Chart - ใช้สีเดิมของ Plotly Express
+    # 6. Inflation Line Chart - ใช้ชุดสีที่มองเห็นได้ง่ายขึ้น
     inflation_series_data = inflation_data_melted[
         inflation_data_melted['Series_Name'] == selected_inflation_series
     ]
     
-    # ใช้ px.line แทนการสร้างกราฟด้วย go.Figure() เพื่อให้ได้สีเดิม
+    # ใช้ px.line โดยกำหนด color_discrete_sequence เป็นชุดสีใหม่
     inflation_line_fig = px.line(
         inflation_series_data, 
         x='Year', 
         y='Inflation_Rate', 
         color='Country',
         title=f'{selected_inflation_series} Trends',
-        template="plotly_white"
+        template="plotly_white",
+        color_discrete_sequence=enhanced_palette  # ใช้ชุดสีที่มองเห็นได้ง่ายขึ้น
     )
     
     inflation_line_fig.update_layout(
@@ -465,7 +470,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
     # ส่วนของกราฟพยากรณ์
     forecast_fig = go.Figure()
 
-# ตรวจสอบว่ามีการเลือกสกุลเงินสำหรับการพยากรณ์หรือไม่
+    # ตรวจสอบว่ามีการเลือกสกุลเงินสำหรับการพยากรณ์หรือไม่
     if forecast_currency:
         from scipy import stats as scipy_stats
         currency = forecast_currency  # ใช้สกุลเงินที่เลือกจาก dropdown สำหรับการพยากรณ์
@@ -489,8 +494,8 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                     x=currency_data['Date'],
                     y=y_values,
                     mode='lines',
-                    name=f'{currency} (ข้อมูลจริง)',
-                    line=dict(color=red_blue_palette[0], width=2)
+                    name=f'{currency} (Actual Data)',
+                    line=dict(color=enhanced_palette[0], width=2)
                 ))
                 
                 # เพิ่มเส้นแนวโน้ม
@@ -498,8 +503,8 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                     x=currency_data['Date'],
                     y=trend_line,
                     mode='lines',
-                    name='เส้นแนวโน้ม',
-                    line=dict(color=red_blue_palette[3], width=2, dash='dash')
+                    name='Trend Line',
+                    line=dict(color=enhanced_palette[2], width=2, dash='dash')
                 ))
                 
                 # สร้างข้อมูลพยากรณ์ล่วงหน้า 30 วัน
@@ -513,39 +518,43 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                     x=future_dates,
                     y=future_values,
                     mode='lines',
-                    name='พยากรณ์ 30 วัน',
-                    line=dict(color=red_blue_palette[1], width=2)
+                    name='30-Day Forecast',
+                    line=dict(color=enhanced_palette[1], width=2)
                 ))
                 
-                # เพิ่มช่วงความเชื่อมั่น 95% (confidence interval)
+                # เพิ่มช่วงความเชื่อมั่น 95% (confidence interval) - ใช้สีที่มองเห็นได้ชัดเจนขึ้น
                 ci = 1.96 * std_err  # ช่วงความเชื่อมั่น 95%
-                # สร้างพื้นที่แรเงาแสดงช่วงความเชื่อมั่น
+                
+                # แปลงสี HEX เป็น RGB
+                hex_color = enhanced_palette[1].lstrip('#')
+                r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+                
                 forecast_fig.add_trace(go.Scatter(
                     x=list(future_dates) + list(future_dates)[::-1],
                     y=list(future_values + ci) + list(future_values - ci)[::-1],
                     fill='toself',
-                    fillcolor=f'rgba({int(red_blue_palette[1][1:3], 16)}, {int(red_blue_palette[1][3:5], 16)}, {int(red_blue_palette[1][5:7], 16)}, 0.2)',
+                    fillcolor=f'rgba({r}, {g}, {b}, 0.3)',  # เพิ่มค่า alpha เพื่อให้มองเห็นชัดขึ้น
                     line=dict(color='rgba(255, 255, 255, 0)'),
                     hoverinfo='skip',
                     showlegend=False,
-                    name='ช่วงความเชื่อมั่น 95%'
+                    name='95% Confidence Interval'
                 ))
                 
             except Exception as e:
                 # จัดการกรณีมีปัญหาในการคำนวณ
                 forecast_fig.add_annotation(
-                    text=f"ไม่สามารถคำนวณการพยากรณ์ได้: ข้อมูลไม่เพียงพอหรือมีปัญหาในการคำนวณ",
+                    text=f"Cannot calculate forecast: insufficient data or calculation error",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, showarrow=False,
-                    font=dict(size=14, color="#E63946")
+                    font=dict(size=14, color=enhanced_palette[3])  # ใช้สีแดงจากชุดสีใหม่
                 )
         else:
             # กรณีข้อมูลไม่เพียงพอ
             forecast_fig.add_annotation(
-                text=f"ข้อมูลของ {currency} มีไม่เพียงพอสำหรับการสร้างการพยากรณ์",
+                text=f"Insufficient data for {currency} to create forecast",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, showarrow=False,
-                font=dict(size=14, color="#E63946")
+                font=dict(size=14, color=enhanced_palette[3])
             )
     else:
         # กรณีไม่มีการเลือกสกุลเงิน
