@@ -9,11 +9,10 @@ import numpy as np
 from scipy import stats
 import os
 
-# สร้าง Dash app
+# สร้างแอป Dash พร้อม Theme
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
-server = app.server  # สำคัญ: ต้องเพิ่มบรรทัดนี้สำหรับ Render
+server = app.server
 
-# โหลดข้อมูล - ใช้เส้นทางสัมพัทธ์
 current_dir = os.path.dirname(os.path.abspath(__file__))
 exchange_rates_path = os.path.join(current_dir, "Foreign_Exchange_Rates.csv")
 inflation_path = os.path.join(current_dir, "Filtered_Inflation_Data.csv")
@@ -37,8 +36,6 @@ inflation_data_melted = pd.melt(
     var_name='Year', 
     value_name='Inflation_Rate'
 )
-
-
 
 # กำหนดธีมสีแดงและน้ำเงิน
 red_blue_palette = [
@@ -154,6 +151,21 @@ app.layout = dbc.Container([
         ], className="shadow-sm"), width=12),
     ], className="mb-4"),
     
+    
+    dbc.Row([
+        dbc.Col([
+            html.Label("Select currency for forecasting :", className="fw-bold"),
+            dcc.Dropdown(
+                id='forecast-currency-dropdown',
+                options=[],  # เราจะอัปเดตตัวเลือกนี้ตาม callback
+                value=None,  # ค่าเริ่มต้นจะถูกกำหนดโดย callback
+                multi=False,
+                className="mb-3",
+                style={'color': 'black'}
+            )
+        ], width=12)
+    ], className="mb-3"),
+    
     dbc.Row([
         dbc.Col(dbc.Card([
             dbc.CardHeader("Trend Analysis & Forecasting"),
@@ -196,6 +208,16 @@ def update_date_display(date_indices):
         "Selected period: ",
         html.Strong(f"{start_date} to {end_date}")
     ])
+    
+@app.callback(
+    [Output('forecast-currency-dropdown', 'options'),
+     Output('forecast-currency-dropdown', 'value')],
+    [Input('currency-dropdown', 'value')]
+)
+def update_forecast_dropdown(selected_currencies):
+    options = [{'label': currency, 'value': currency} for currency in selected_currencies] if selected_currencies else []
+    default_value = selected_currencies[0] if selected_currencies else None
+    return options, default_value
 
 # Callback สำหรับอัปเดตกราฟและสถิติ
 @app.callback(
@@ -209,10 +231,11 @@ def update_date_display(date_indices):
      Output('statistics-output', 'children')],
     [Input('currency-dropdown', 'value'),
      Input('inflation-series-dropdown', 'value'),
-     Input('date-range-slider', 'value')]
+     Input('date-range-slider', 'value'),
+     Input('forecast-currency-dropdown', 'value')]
 )
 
-def update_dashboard(selected_currencies, selected_inflation_series, date_indices):
+def update_dashboard(selected_currencies, selected_inflation_series, date_indices, forecast_currency):
     # ตรวจสอบว่ามีการเลือกสกุลเงินหรือไม่
     if not selected_currencies:
         selected_currencies = [exchange_data.columns[2]]  # default to first currency
@@ -454,61 +477,64 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
         legend_title="Countries"
     )
     
+    # ส่วนของกราฟพยากรณ์
     forecast_fig = go.Figure()
 
-    # เลือกสกุลเงินที่จะแสดงการพยากรณ์ (เลือกอันแรกเป็นตัวอย่าง)
-    if selected_currencies:
+# ตรวจสอบว่ามีการเลือกสกุลเงินสำหรับการพยากรณ์หรือไม่
+    if forecast_currency:
         from scipy import stats as scipy_stats
-        currency = selected_currencies[0]
+        currency = forecast_currency  # ใช้สกุลเงินที่เลือกจาก dropdown สำหรับการพยากรณ์
         
-        # ข้อมูลสำหรับการพยากรณ์
+        # ดึงข้อมูลเฉพาะสกุลเงินที่เลือก
         currency_data = filtered_exchange_data[['Date', currency]].dropna()
         
         # เช็คว่ามีข้อมูลพอหรือไม่
-        if len(currency_data) > 10:  # Make sure there's enough data
+        if len(currency_data) > 10:  # ต้องมีข้อมูลอย่างน้อย 10 จุดในการสร้างการพยากรณ์
+            # สร้าง array ของ index สำหรับการคำนวณแนวโน้ม (0, 1, 2, 3, ...)
             x_values = np.arange(len(currency_data))
             y_values = currency_data[currency].values
             
             try:
-                # คำนวณเส้นแนวโน้มอย่างง่าย
+                # คำนวณเส้นแนวโน้มแบบเชิงเส้น (linear regression)
                 slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x_values, y_values)
                 trend_line = intercept + slope * x_values
                 
-                # วาดกราฟข้อมูลจริง
+                # เพิ่มกราฟเส้นแสดงข้อมูลจริง
                 forecast_fig.add_trace(go.Scatter(
                     x=currency_data['Date'],
                     y=y_values,
                     mode='lines',
-                    name=f'{currency} (Actual)',
+                    name=f'{currency} (ข้อมูลจริง)',
                     line=dict(color=red_blue_palette[0], width=2)
                 ))
                 
-                # วาดเส้นแนวโน้ม
+                # เพิ่มเส้นแนวโน้ม
                 forecast_fig.add_trace(go.Scatter(
                     x=currency_data['Date'],
                     y=trend_line,
                     mode='lines',
-                    name='Trend Line',
+                    name='เส้นแนวโน้ม',
                     line=dict(color=red_blue_palette[3], width=2, dash='dash')
                 ))
                 
-                # สร้างการพยากรณ์อย่างง่าย (สมมติว่าเพิ่มอีก 30 วัน)
+                # สร้างข้อมูลพยากรณ์ล่วงหน้า 30 วัน
                 last_date = currency_data['Date'].iloc[-1]
-                future_dates = pd.date_range(start=last_date, periods=31)[1:]
-                future_indices = np.arange(len(x_values), len(x_values) + 30)
-                future_values = intercept + slope * future_indices
+                future_dates = pd.date_range(start=last_date, periods=31)[1:]  # สร้างวันที่ล่วงหน้า 30 วัน
+                future_indices = np.arange(len(x_values), len(x_values) + 30)  # สร้าง index ต่อจากข้อมูลจริง
+                future_values = intercept + slope * future_indices  # คำนวณค่าพยากรณ์จากสมการเส้นตรง
                 
-                # วาดเส้นพยากรณ์
+                # เพิ่มเส้นพยากรณ์
                 forecast_fig.add_trace(go.Scatter(
                     x=future_dates,
                     y=future_values,
                     mode='lines',
-                    name='30-Day Forecast',
+                    name='พยากรณ์ 30 วัน',
                     line=dict(color=red_blue_palette[1], width=2)
                 ))
                 
-                # เพิ่มช่วงความเชื่อมั่น (confidence interval)
-                ci = 1.96 * std_err
+                # เพิ่มช่วงความเชื่อมั่น 95% (confidence interval)
+                ci = 1.96 * std_err  # ช่วงความเชื่อมั่น 95%
+                # สร้างพื้นที่แรเงาแสดงช่วงความเชื่อมั่น
                 forecast_fig.add_trace(go.Scatter(
                     x=list(future_dates) + list(future_dates)[::-1],
                     y=list(future_values + ci) + list(future_values - ci)[::-1],
@@ -517,39 +543,45 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                     line=dict(color='rgba(255, 255, 255, 0)'),
                     hoverinfo='skip',
                     showlegend=False,
-                    name='95% Confidence Interval'
+                    name='ช่วงความเชื่อมั่น 95%'
                 ))
+                
             except Exception as e:
-                # Add error handling for calculation issues
+                # จัดการกรณีมีปัญหาในการคำนวณ
                 forecast_fig.add_annotation(
-                    text=f"Could not calculate forecast: insufficient data or calculation error",
+                    text=f"ไม่สามารถคำนวณการพยากรณ์ได้: ข้อมูลไม่เพียงพอหรือมีปัญหาในการคำนวณ",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, showarrow=False,
                     font=dict(size=14, color="#E63946")
                 )
         else:
+            # กรณีข้อมูลไม่เพียงพอ
             forecast_fig.add_annotation(
-                text=f"Not enough data points for {currency} to create forecast",
+                text=f"ข้อมูลของ {currency} มีไม่เพียงพอสำหรับการสร้างการพยากรณ์",
                 xref="paper", yref="paper",
                 x=0.5, y=0.5, showarrow=False,
                 font=dict(size=14, color="#E63946")
             )
     else:
+        # กรณีไม่มีการเลือกสกุลเงิน
         forecast_fig.add_annotation(
-            text="Please select a currency to view forecast",
+            text="กรุณาเลือกสกุลเงินเพื่อดูการพยากรณ์",
             xref="paper", yref="paper",
             x=0.5, y=0.5, showarrow=False,
             font=dict(size=14, color="#E63946")
         )
-    
+
+    # กำหนดรูปแบบของกราฟ
     forecast_fig.update_layout(
-        title=f"Trend Analysis & 30-Day Forecast" + (f" for {selected_currencies[0]}" if selected_currencies else ""),
-        xaxis_title="Date",
-        yaxis_title="Exchange Rate Value",
+        title=f"การวิเคราะห์แนวโน้มและพยากรณ์ 30 วัน" + (f" สำหรับ {forecast_currency}" if forecast_currency else ""),
+        xaxis_title="วันที่",
+        yaxis_title="อัตราแลกเปลี่ยน",
         template="plotly_white",
         plot_bgcolor='rgba(0,0,0,0)',
         paper_bgcolor='rgba(0,0,0,0)'
     )
+    
+    
 
     # สร้างสถิติอย่างง่าย
     statistics_cards = []
