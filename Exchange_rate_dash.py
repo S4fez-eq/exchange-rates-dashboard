@@ -39,7 +39,7 @@ inflation_data_melted = pd.melt(
 
 # กำหนดธีมสีใหม่ที่มองเห็นได้ง่าย - ใช้ชุดสี ColorBrewer ที่เป็นมิตรกับทุกคน
 # ชุดสีที่มีความแตกต่างมากขึ้น และเป็นมิตรกับผู้มีปัญหาตาบอดสี
-red_blue_palette = [
+enhanced_palette = [
     '#1f77b4',  # สีน้ำเงินเข้มอมฟ้า
     '#ff7f0e',  # สีส้ม
     '#2ca02c',  # สีเขียว
@@ -586,7 +586,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
         stats = filtered_exchange_data[currency].describe()
         
         stats_card = dbc.Card([
-            dbc.CardHeader(f"Statistics for {currency}", className="text-white", style={'background-color': red_blue_palette[0]}),
+            dbc.CardHeader(f"Statistics for {currency}", className="text-white", style={'background-color': enhanced_palette[0]}),
             dbc.CardBody([
                 html.Div([
                     html.P(f"Average: {stats['mean']:.4f}"),
@@ -603,7 +603,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
         # สำหรับหลายสกุลเงิน แสดงภาพรวม
         overall_stats = dbc.Card([
             dbc.CardHeader(f"Overview of {len(selected_currencies)} Selected Currencies", 
-                         className="text-white", style={'background-color': red_blue_palette[1]}),
+                         className="text-white", style={'background-color': enhanced_palette[1]}),
             dbc.CardBody([
                 html.Div([
                     html.P(f"Highest average rate: {filtered_exchange_data[selected_currencies].mean().max():.4f} ({filtered_exchange_data[selected_currencies].mean().idxmax()})"),
