@@ -319,48 +319,33 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
     # 3. Bubble Chart - แสดงความสัมพันธ์ระหว่างสกุลเงิน
     bubble_fig = go.Figure()
     if len(selected_currencies) >= 2:
-        # สร้าง correlation matrix ของทุกสกุลเงิน
-        correlation_matrix = filtered_exchange_data[selected_currencies].corr()
+    # เลือกเฉพาะสองสกุลเงินแรกที่ถูกเลือก
+        curr1 = selected_currencies[0]
+        curr2 = selected_currencies[1]
         
-        # สร้างข้อมูลสำหรับแสดงเป็นจุดในกราฟ
-        bubble_data = []
-        for i, curr1 in enumerate(selected_currencies):
-            for j, curr2 in enumerate(selected_currencies):
-                if i < j:  # เพื่อให้แสดงแค่ครึ่งบนของ correlation matrix
-                    bubble_data.append({
-                        'x': filtered_exchange_data[curr1],
-                        'y': filtered_exchange_data[curr2],
-                        'curr1': curr1,
-                        'curr2': curr2,
-                        'corr': correlation_matrix.loc[curr1, curr2]
-                    })
+        # คำนวณค่า correlation ระหว่างสองสกุลเงิน
+        corr_value = filtered_exchange_data[[curr1, curr2]].corr().iloc[0, 1]
         
-        # เลือกคู่ที่จะแสดง (ถ้ามีมากกว่า 3 คู่ แสดงเฉพาะคู่ที่มี correlation สูงสุด)
-        if len(bubble_data) > 3:
-            bubble_data.sort(key=lambda x: abs(x['corr']), reverse=True)
-            bubble_data = bubble_data[:3]
-        
-        # เพิ่มข้อมูลเข้าไปในกราฟ
-        for data in bubble_data:
-            bubble_fig.add_trace(go.Scatter(
-                x=data['x'],
-                y=data['y'],
-                mode='markers',
-                name=f"{data['curr1']} vs {data['curr2']} (corr: {data['corr']:.2f})",
-                marker=dict(
-                    size=8,
-                    opacity=0.7,
-                    color=filtered_exchange_data[data['curr1']],  # ใช้ค่าสกุลเงินแรกเป็นค่าสี
-                    colorscale='Viridis',  # ใช้ colorscale สวยๆ ที่ใกล้เคียงกับรูปตัวอย่าง
-                    colorbar=dict(title="Value"),
-                    showscale=True
-                )
-            ))
+        # สร้าง scatter plot แสดงความสัมพันธ์
+        bubble_fig.add_trace(go.Scatter(
+            x=filtered_exchange_data[curr1],
+            y=filtered_exchange_data[curr2],
+            mode='markers',
+            name=f"{curr1} vs {curr2} (corr: {corr_value:.2f})",
+            marker=dict(
+                size=8,
+                opacity=0.7,
+                color=filtered_exchange_data[curr1],  # ใช้ค่าสกุลเงินแรกเป็นค่าสี
+                colorscale='Viridis',  # ใช้ colorscale สวยๆ
+                colorbar=dict(title="Value"),
+                showscale=True
+            )
+        ))
         
         bubble_fig.update_layout(
-            title="Bubble Chart of Currency Relationship",
-            xaxis_title="Currency 1 Value",
-            yaxis_title="Currency 2 Value",
+            title=f"Bubble Chart: {curr1} vs {curr2}",
+            xaxis_title=f"{curr1} Value",
+            yaxis_title=f"{curr2} Value",
             template="plotly_white",
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)'
@@ -372,21 +357,21 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
             x=0.5, y=0.5, showarrow=False,
             font=dict(size=16, color="#E63946")
         )
-
-    # 4. Box Plot - แสดงการกระจายตัวของข้อมูล (รองรับทุกจำนวนสกุลเงิน)
+    
+        # 4. Box Plot - แสดงการกระจายตัวของข้อมูล (รองรับทุกจำนวนสกุลเงิน)
     box_fig = go.Figure()
     if len(selected_currencies) > 20:  # ถ้ามีมากกว่า 20 สกุล จัดกลุ่มตามค่าเฉลี่ย
         mean_values = filtered_exchange_data[selected_currencies].mean().sort_values()
         low_currencies = mean_values.head(10).index.tolist()
         medium_currencies = mean_values[10:-10].index.tolist()
         high_currencies = mean_values.tail(10).index.tolist()
-        
+            
         groups = [
             ('Low Range', low_currencies),
             ('Medium Range', []),  # ไม่แสดงสกุลกลุ่มกลางถ้ามีมากเกินไป
             ('High Range', high_currencies)
         ]
-        
+            
         for i, (group_name, currencies) in enumerate(groups):
             if currencies:
                 box_fig.add_trace(go.Box(
@@ -401,7 +386,7 @@ def update_dashboard(selected_currencies, selected_inflation_series, date_indice
                 name=currency,
                 marker_color=red_blue_palette[i % len(red_blue_palette)]
             ))
-    
+        
     box_fig.update_layout(
         title="Exchange Rate Distribution" + (" (Grouped)" if len(selected_currencies) > 20 else ""),
         yaxis_title="Exchange Rate Value",
